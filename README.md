@@ -19,7 +19,9 @@ Without it, NEMSU-email login works but personal-Gmail registration will not.
 ## 2. Google Cloud (required for Google sign-in)
 In the same project as the website's OAuth client, create an **Android** OAuth client:
 - Package name: `ph.edu.nemsu.nemsai`
-- SHA-1: `62:29:EE:69:B8:C7:74:E0:53:F9:8D:A9:28:08:EF:A1:FD:D0:14:45`  (this is the key in `signing_key/`)
+- Debug SHA-1: `1F:EE:C9:48:5C:8F:76:AF:DD:32:4D:FC:8A:7E:C9:98:49:EF:08:63`
+- Release SHA-1: `BE:C8:50:8A:FE:EB:6A:D7:AE:3E:D0:11:82:F6:93:8C:D1:2D:C0:B2`
+Add both fingerprints to the Android OAuth client (or add separate clients for each fingerprint). Your emulator certificate may differ on another computer.
 Keep the existing **Web** client; the app already uses its ID (it must equal GOOGLE_CLIENT_ID on the backend).
 
 ## 3. Build the APK (GitHub Actions - no local setup)

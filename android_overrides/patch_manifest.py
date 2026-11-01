@@ -5,8 +5,8 @@ p = "android/app/src/main/AndroidManifest.xml"
 s = open(p, encoding="utf-8").read()
 perms = (
     '    <uses-permission android:name="android.permission.INTERNET"/>\n'
-    '    <uses-permission android:name="android.permission.CAMERA"/>\n'
     '    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n'
+    '    <uses-permission android:name="android.permission.CAMERA"/>\n'
     '    <uses-feature android:name="android.hardware.camera" android:required="false"/>\n'
     '    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>\n'
 )
