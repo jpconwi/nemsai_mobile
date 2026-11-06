@@ -42,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
           width: double.infinity,
           decoration: const BoxDecoration(
             color: C.blue,
-            border: Border(bottom: BorderSide(color: C.gold, width: 4)),
+            border: Border(bottom: BorderSide(color: Color(0xFF9BB8D1), width: 3)),
           ),
           child: SafeArea(
             bottom: false,
@@ -53,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(width: 12),
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('NEMSAI', style: TextStyle(color: Colors.white, fontFamily: serif, fontWeight: FontWeight.w700, fontSize: 21)),
-                  Text('NEMSU Tandag Main Campus Assistant', style: TextStyle(color: Color(0xFFD7D9FF), fontSize: 12.5)),
+                  Text('NEMSU Tandag Main Campus Assistant', style: TextStyle(color: Color(0xFFD7EAFF), fontSize: 12.5)),
                 ]),
               ]),
             ),

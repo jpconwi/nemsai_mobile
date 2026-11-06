@@ -1,6 +1,8 @@
 /// home_screen.dart - the student / instructor dashboard (port of Home.jsx).
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -9,6 +11,7 @@ import '../api/auth_state.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/skeleton.dart';
+import 'notifications_screen.dart';
 
 String _greeting() {
   final h = DateTime.now().hour;
@@ -16,14 +19,15 @@ String _greeting() {
 }
 
 class _Tile {
-  const _Tile(this.path, this.title, this.text, this.icon, this.tone, {this.track = false, this.countKey, this.wide = false});
+  const _Tile(this.path, this.title, this.text, this.icon, this.tone,
+      {this.track = false, this.countKeys = const [], this.wide = false});
   final String path;
   final String title;
   final String text;
   final IconData icon;
   final Color tone;
   final bool track;
-  final String? countKey;
+  final List<String> countKeys; // pending counts that are added together
   final bool wide;
 }
 
@@ -35,11 +39,21 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _counts; // null = still loading
+  List<Map<String, dynamic>> _announcements = const [];
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _loadAnnouncements();
+    _timer = Timer.periodic(const Duration(seconds: 60), (_) => _loadAnnouncements());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -51,27 +65,35 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _loadAnnouncements() async {
+    try {
+      final d = await api.get('/api/announcements');
+      final rows = ((d['rows'] as List?) ?? const []).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      if (mounted) setState(() => _announcements = rows);
+    } on ApiError {
+      // keep what is already shown
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthState>().user!;
     final instructor = user.isInstructor;
 
     final tiles = <_Tile>[
-      const _Tile('/ai', 'Campus AI', 'Get answers about campus services, rooms, facilities and instructors. Send a photo to report a problem.',
-          Icons.chat_bubble_outline, Color(0xFF17119E), wide: true),
-      const _Tile('/concerns', 'My Concerns', 'Tell the administration about a campus issue and follow its review status.', Icons.warning_amber_rounded, Color(0xFFB7791F),
-          track: true, countKey: 'concerns'),
-      const _Tile('/reports', 'My Reports', 'View updates on reports you have submitted.', Icons.description_outlined, Color(0xFF0F766E),
-          track: true, countKey: 'reports'),
+      const _Tile('/ai', 'NEMSAI Assistant', 'Ask about rooms, facilities, locations and instructors. You can type or send a photo.',
+          Icons.chat_bubble_outline, Color(0xFF28699E), wide: true),
+      const _Tile('/reports', 'My Reports', 'Submit and track concerns or problems.', Icons.description_outlined,
+          Color(0xFF0F6B6B), track: true, countKeys: ['concerns', 'reports']),
       const _Tile('/feedback', 'Feedback', 'Share your thoughts about a campus area.', Icons.rate_review_outlined,
-          Color(0xFF6D28D9)),
+          Color(0xFF287FCB)),
       if (instructor) ...const [
         _Tile('/reservations', 'Reservations', 'Request a room or facility.', Icons.event_available_outlined,
-            Color(0xFF2E7D32), track: true, countKey: 'reservations'),
+            Color(0xFF1B6A25), track: true, countKeys: ['reservations']),
         _Tile('/faculty', 'Faculty Availability', 'Report an absence or mark yourself available.', Icons.school_outlined,
-            Color(0xFF17119E)),
+            Color(0xFF28699E)),
       ],
-      const _Tile('/profile', 'Profile', 'Your account details.', Icons.person_outline, Color(0xFF475569)),
+      const _Tile('/profile', 'Profile', 'Your account details.', Icons.person_outline, Color(0xFF456B8C)),
     ];
 
     return AppScaffold(
@@ -80,15 +102,15 @@ class _HomeScreenState extends State<HomeScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           setState(() => _counts = null);
-          await _load();
+          await Future.wait([_load(), _loadAnnouncements()]);
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           children: [
             _hero(user),
-            const SizedBox(height: 14),
-            _campusenseIntro(),
+            const SizedBox(height: 16),
+            _announcementsPanel(),
             const SizedBox(height: 16),
             for (final t in tiles) ...[
               _tile(t),
@@ -103,31 +125,31 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _hero(AppUser user) => Container(
         padding: const EdgeInsets.fromLTRB(20, 20, 16, 20),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [C.blue, C.blueDeep], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          color: C.blueDeep,
           borderRadius: BorderRadius.circular(18),
         ),
         child: Row(children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(_greeting().toUpperCase(),
-                  style: const TextStyle(color: C.gold, fontWeight: FontWeight.w700, letterSpacing: 1.2, fontSize: 12)),
+                  style: const TextStyle(color: Color(0xFFE6F5FF), fontWeight: FontWeight.w700, letterSpacing: 1.2, fontSize: 12)),
               const SizedBox(height: 6),
               Text('Welcome, ${user.firstName}',
                   style: const TextStyle(color: Colors.white, fontFamily: serif, fontSize: 26, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
-              const Text('Campus help, issue reporting, and updates in one place.', style: TextStyle(color: Color(0xFFD7D9FF))),
+              const Text('What would you like to do today?', style: TextStyle(color: Color(0xFFD7EAFF))),
               const SizedBox(height: 16),
               Wrap(spacing: 10, runSpacing: 10, children: [
                 FilledButton.icon(
-                  style: FilledButton.styleFrom(backgroundColor: C.gold, foregroundColor: C.blueDeep),
+                  style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: C.blueDeep),
                   onPressed: () => goTo(context, '/ai'),
                   icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                  label: const Text('Ask Campus AI'),
+                  label: const Text('Ask NEMSAI Assistant'),
                 ),
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white54)),
-                  onPressed: () => goTo(context, '/concerns'),
-                  icon: const Icon(Icons.warning_amber_rounded, size: 18),
+                  onPressed: () => goTo(context, '/reports'),
+                  icon: const Icon(Icons.description_outlined, size: 18),
                   label: const Text('Report a problem'),
                 ),
               ]),
@@ -138,27 +160,50 @@ class _HomeScreenState extends State<HomeScreen> {
         ]),
       );
 
-  Widget _campusenseIntro() => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: C.line),
-        ),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Icon(Icons.hub_outlined, color: C.blue, size: 22),
-          const SizedBox(width: 12),
-          const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Campusense', style: TextStyle(fontWeight: FontWeight.w700, color: C.blueDeep, fontSize: 16)),
-            SizedBox(height: 4),
-            Text('A smarter way to connect students with campus services. Ask for help, report a facility issue with a photo or description, then check your submissions for administrator updates.',
-                style: TextStyle(color: C.muted, fontSize: 13.5, height: 1.4)),
-          ])),
+  Widget _announcementsPanel() {
+    final shown = _announcements.take(3).toList();
+    return Panel(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Campus announcements',
+                  style: TextStyle(fontFamily: serif, fontSize: 18, fontWeight: FontWeight.w700, color: C.blueDeep)),
+              SizedBox(height: 2),
+              Text('Updates from the administration.', style: TextStyle(color: C.muted, fontSize: 13)),
+            ]),
+          ),
+          if (_announcements.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(color: const Color(0xFFE5EFF5), borderRadius: BorderRadius.circular(999)),
+              child: Text('${_announcements.length} active',
+                  style: const TextStyle(color: C.blueDeep, fontWeight: FontWeight.w700, fontSize: 12)),
+            ),
         ]),
-      );
+        const SizedBox(height: 12),
+        if (shown.isEmpty)
+          const Text('There are no current announcements.', style: TextStyle(color: C.muted))
+        else ...[
+          for (final a in shown) ...[
+            AnnouncementCard(item: a),
+            const SizedBox(height: 8),
+          ],
+          if (_announcements.length > shown.length)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => goTo(context, '/notifications'),
+                child: Text('View all ${_announcements.length} notifications'),
+              ),
+            ),
+        ],
+      ]),
+    );
+  }
 
   Widget _tile(_Tile t) {
-    final pending = t.countKey == null ? 0 : ((_counts?[t.countKey] as num?)?.toInt() ?? 0);
+    final pending = t.countKeys.fold<int>(0, (sum, k) => sum + ((_counts?[k] as num?)?.toInt() ?? 0));
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(14),
@@ -192,9 +237,9 @@ class _HomeScreenState extends State<HomeScreen> {
             else if (pending > 0)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                decoration: BoxDecoration(color: const Color(0xFFFFF3CD), borderRadius: BorderRadius.circular(999)),
+                decoration: BoxDecoration(color: const Color(0xFFE3EDF5), borderRadius: BorderRadius.circular(999)),
                 child: Text('$pending pending',
-                    style: const TextStyle(color: Color(0xFF8A6100), fontWeight: FontWeight.w700, fontSize: 12)),
+                    style: const TextStyle(color: Color(0xFF234F75), fontWeight: FontWeight.w700, fontSize: 12)),
               ),
             const Icon(Icons.chevron_right, color: C.muted),
           ]),

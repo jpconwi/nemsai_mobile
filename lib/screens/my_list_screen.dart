@@ -1,4 +1,4 @@
-/// my_list_screen.dart - My Concerns / My Reports / Feedback / Reservations (one screen, four kinds).
+/// my_list_screen.dart - My Reports (concerns + problems together) / Feedback / Reservations.
 library;
 
 import 'dart:typed_data';
@@ -15,7 +15,7 @@ const _longText = ['description', 'message', 'purpose', 'additional_info'];
 
 class MyListScreen extends StatefulWidget {
   const MyListScreen({super.key, required this.kind});
-  final String kind; // concerns | reports | feedback | reservations
+  final String kind; // reports (concerns + problems) | feedback | reservations
 
   @override
   State<MyListScreen> createState() => _MyListScreenState();
@@ -27,6 +27,10 @@ class _MyListScreenState extends State<MyListScreen> {
   bool _open = false;
   Map<String, dynamic>? _result;
   String _q = '';
+  String _recordFilter = 'all'; // all | concern | problem (My Reports only)
+  String _formKind = 'report'; // concern | report (My Reports only)
+
+  bool get _combined => widget.kind == 'reports';
 
   @override
   void initState() {
@@ -36,7 +40,13 @@ class _MyListScreenState extends State<MyListScreen> {
 
   Future<void> _load() async {
     try {
-      final d = await api.get('/api/me/records/${widget.kind}');
+      final Map<String, dynamic> d;
+      if (_combined) {
+        final results = await Future.wait([api.get('/api/me/records/concerns'), api.get('/api/me/records/reports')]);
+        d = _merge(Map<String, dynamic>.from(results[0] as Map), Map<String, dynamic>.from(results[1] as Map));
+      } else {
+        d = await api.get('/api/me/records/${widget.kind}');
+      }
       if (mounted) {
         setState(() {
           _data = d;
@@ -48,7 +58,40 @@ class _MyListScreenState extends State<MyListScreen> {
     }
   }
 
+  /// Concerns and problems in one list, newest first (same as the website's My Reports).
+  Map<String, dynamic> _merge(Map<String, dynamic> concerns, Map<String, dynamic> reports) {
+    List<Map<String, dynamic>> tag(Map<String, dynamic> src, String type) =>
+        ((src['rows'] as List?) ?? const []).map((e) {
+          final row = Map<String, dynamic>.from(e as Map);
+          row['record_kind'] = type;
+          row['record_category'] = '${row['concern_type'] ?? row['report_type'] ?? ''}';
+          return row;
+        }).toList();
+    final rows = [...tag(concerns, 'concern'), ...tag(reports, 'problem')]
+      ..sort((a, b) => '${b['created_at'] ?? ''}'.compareTo('${a['created_at'] ?? ''}'));
+    return {
+      'spec': {
+        'title': 'My Reports',
+        'intro': 'Submit and track campus concerns or problems.',
+        'form': 'report',
+        'image': true,
+      },
+      'rows': rows,
+      'columns': [
+        ['ID', 'id'],
+        ['Submitted', 'created_at'],
+        ['Type', 'record_category'],
+        ['Location', 'location'],
+        ['Description', 'description'],
+        ['Status', 'status'],
+      ],
+      'image': true,
+      'pdf': true,
+    };
+  }
+
   bool _matches(Map<String, dynamic> row) {
+    if (_combined && _recordFilter != 'all' && row['record_kind'] != _recordFilter) return false;
     final words = _q.toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
     if (words.isEmpty) return true;
     final text = row.values.where((v) => v is String || v is num).join(' ').toLowerCase();
@@ -85,10 +128,10 @@ class _MyListScreenState extends State<MyListScreen> {
     }
   }
 
-  Future<void> _openPdf(Object? id) async {
+  Future<void> _openPdf(Object? id, String kind) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await api.openPdf('/api/pdf/${widget.kind}/$id', '${widget.kind}-$id');
+      await api.openPdf('/api/pdf/$kind/$id', '$kind-$id');
     } on ApiError catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -130,7 +173,6 @@ class _MyListScreenState extends State<MyListScreen> {
   }
 
   String _fallbackTitle(String kind) => switch (kind) {
-        'concerns' => 'My Concerns',
         'reports' => 'My Reports',
         'feedback' => 'Feedback',
         _ => 'Reservations',
@@ -142,8 +184,8 @@ class _MyListScreenState extends State<MyListScreen> {
         .map((c) => (c as List).map((e) => '$e').toList())
         .toList();
     final rows = all.where(_matches).toList();
-    final form = spec['form'] as String;
-    final hasImage = spec['image'] == true;
+    final form = _combined ? _formKind : spec['form'] as String;
+    final hasImage = _combined ? d['image'] == true : spec['image'] == true;
     final hasPdf = d['pdf'] == true;
 
     return RefreshIndicator(
@@ -156,13 +198,30 @@ class _MyListScreenState extends State<MyListScreen> {
           FilledButton.icon(
             onPressed: () => setState(() => _open = !_open),
             icon: Icon(_open ? Icons.close : Icons.add),
-            label: Text(_open ? 'Close form' : 'New $form'),
+            label: Text(_open ? 'Close form' : (_combined ? 'New report' : 'New $form')),
           ),
           if (_open) ...[
             const SizedBox(height: 14),
             Panel(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                RecordForm(kind: form, onSuccess: _done),
+                if (_combined) ...[
+                  DropdownButtonFormField<String>(
+                    value: _formKind,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Submit as'),
+                    items: const [
+                      DropdownMenuItem(
+                          value: 'concern',
+                          child: Text('Concern - facility or service problem', overflow: TextOverflow.ellipsis)),
+                      DropdownMenuItem(
+                          value: 'report',
+                          child: Text('Problem - incident or safety/security issue', overflow: TextOverflow.ellipsis)),
+                    ],
+                    onChanged: (v) => setState(() => _formKind = v ?? 'report'),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+                RecordForm(key: ValueKey(form), kind: form, onSuccess: _done),
                 if (_result != null) ...[
                   const SizedBox(height: 12),
                   SuccessCard(result: _result!),
@@ -176,7 +235,20 @@ class _MyListScreenState extends State<MyListScreen> {
           const Text('Your submissions',
               style: TextStyle(fontFamily: serif, fontSize: 19, fontWeight: FontWeight.w700, color: C.blueDeep)),
           const SizedBox(height: 8),
-          if (all.length > 4) ...[
+          if (_combined) ...[
+            DropdownButtonFormField<String>(
+              value: _recordFilter,
+              decoration: const InputDecoration(labelText: 'Filter by type'),
+              items: const [
+                DropdownMenuItem(value: 'all', child: Text('All records')),
+                DropdownMenuItem(value: 'concern', child: Text('Concerns')),
+                DropdownMenuItem(value: 'problem', child: Text('Problems')),
+              ],
+              onChanged: (v) => setState(() => _recordFilter = v ?? 'all'),
+            ),
+            const SizedBox(height: 10),
+          ],
+          if (all.length > 4 || _q.isNotEmpty) ...[
             TextField(
               decoration: InputDecoration(
                 hintText: 'Search your submissions...',
@@ -192,13 +264,15 @@ class _MyListScreenState extends State<MyListScreen> {
               _recordCard(r, columns, hasImage, hasPdf),
               const SizedBox(height: 10),
             ]
-          else if (_q.isNotEmpty && all.isNotEmpty)
-            EmptyState(title: 'No matches', text: 'Nothing matches "$_q".')
+          else if ((_q.isNotEmpty || (_combined && _recordFilter != 'all')) && all.isNotEmpty)
+            EmptyState(
+                title: 'No matches',
+                text: _q.isNotEmpty ? 'Nothing matches "$_q".' : 'You have no records of this type yet.')
           else
             EmptyState(
               title: 'Nothing yet',
               text: 'You have not submitted anything here yet.',
-              action: FilledButton(onPressed: () => setState(() => _open = true), child: Text('New $form')),
+              action: FilledButton(onPressed: () => setState(() => _open = true), child: Text(_combined ? 'New report' : 'New $form')),
             ),
         ],
       ),
@@ -213,6 +287,21 @@ class _MyListScreenState extends State<MyListScreen> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Text('#${padId(r['id'])}', style: const TextStyle(fontWeight: FontWeight.w800, color: C.blueDeep)),
+          if (r['record_kind'] != null) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+              decoration: BoxDecoration(
+                color: r['record_kind'] == 'concern' ? const Color(0xFFEDF3F8) : const Color(0xFFE3EDF5),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(r['record_kind'] == 'concern' ? 'Concern' : 'Problem',
+                  style: TextStyle(
+                      color: r['record_kind'] == 'concern' ? const Color(0xFF3C5D78) : const Color(0xFF234F75),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12)),
+            ),
+          ],
           const Spacer(),
           if (status != null && status.isNotEmpty) StatusBadge(status),
         ]),
@@ -240,7 +329,7 @@ class _MyListScreenState extends State<MyListScreen> {
               ),
             if (hasPdf)
               TextButton.icon(
-                onPressed: () => _openPdf(r['id']),
+                onPressed: () => _openPdf(r['id'], r['record_kind'] == null ? widget.kind : (r['record_kind'] == 'concern' ? 'concerns' : 'reports')),
                 icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
                 label: const Text('PDF'),
               ),

@@ -10,6 +10,7 @@ import '../screens/chat_screen.dart';
 import '../screens/faculty_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/my_list_screen.dart';
+import '../screens/notifications_screen.dart';
 import '../screens/profile_screen.dart';
 import '../theme.dart';
 
@@ -114,9 +115,12 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = status.toLowerCase();
     Color bg = C.blueSoft, fg = C.blue;
-    if (s.contains('pending') || s.contains('review') || s.contains('absent')) {
-      bg = const Color(0xFFFFF3CD);
-      fg = const Color(0xFF8A6100);
+    if (s.contains('review') || s.contains('progress')) {
+      bg = const Color(0xFFE3EDF5);
+      fg = const Color(0xFF234F75);
+    } else if (s.contains('pending') || s.contains('absent')) {
+      bg = const Color(0xFFEDF3F8);
+      fg = const Color(0xFF3C5D78);
     } else if (s.contains('approved') || s.contains('resolved') || s.contains('done') ||
         s.contains('complete') || s.contains('available') || s.contains('closed')) {
       bg = const Color(0xFFDFF3E1);
@@ -164,9 +168,9 @@ typedef _Dest = ({String label, IconData icon, Widget Function() page});
 
 Map<String, _Dest> _destinations() => {
       '/': (label: 'Home', icon: Icons.home_outlined, page: () => const HomeScreen()),
-      '/ai': (label: 'Campus AI', icon: Icons.chat_bubble_outline, page: () => const ChatScreen()),
+      '/notifications': (label: 'Notifications', icon: Icons.notifications_none, page: () => const NotificationsScreen()),
+      '/ai': (label: 'NEMSAI Assistant', icon: Icons.chat_bubble_outline, page: () => const ChatScreen()),
       '/reports': (label: 'My Reports', icon: Icons.description_outlined, page: () => const MyListScreen(kind: 'reports')),
-      '/concerns': (label: 'My Concerns', icon: Icons.warning_amber_rounded, page: () => const MyListScreen(kind: 'concerns')),
       '/feedback': (label: 'Feedback', icon: Icons.rate_review_outlined, page: () => const MyListScreen(kind: 'feedback')),
       '/reservations': (label: 'Reservations', icon: Icons.event_available_outlined, page: () => const MyListScreen(kind: 'reservations')),
       '/faculty': (label: 'Faculty Availability', icon: Icons.school_outlined, page: () => const FacultyScreen()),
@@ -175,8 +179,9 @@ Map<String, _Dest> _destinations() => {
 
 /// Same menu items the website shows for each role (see NAV in backend security.py).
 List<String> navFor(String? role) => [
-      '/', '/ai', '/reports', '/concerns', '/feedback',
+      '/', '/notifications', '/ai', '/reports',
       if (role == 'instructor') '/faculty',
+      '/feedback',
       if (role == 'instructor') '/reservations',
       '/profile',
     ];
@@ -229,7 +234,7 @@ class AppScaffold extends StatelessWidget {
                     const Text('NEMSAI',
                         style: TextStyle(color: Colors.white, fontFamily: serif, fontWeight: FontWeight.w700, fontSize: 18)),
                     Text(user?.role == null ? '' : '${user!.role![0].toUpperCase()}${user.role!.substring(1)}',
-                        style: const TextStyle(color: C.gold, fontSize: 13)),
+                        style: const TextStyle(color: Color(0xFFBFE4FF), fontSize: 13)),
                   ]),
                 ),
               ]),
@@ -240,7 +245,7 @@ class AppScaffold extends StatelessWidget {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text('${user.name}\n${user.email}',
-                      style: const TextStyle(color: Color(0xFFCFD0FF), fontSize: 12.5, height: 1.35)),
+                      style: const TextStyle(color: Color(0xFFCFE6FA), fontSize: 12.5, height: 1.35)),
                 ),
               ),
             const Divider(color: Colors.white24, height: 1),
@@ -249,10 +254,10 @@ class AppScaffold extends StatelessWidget {
                 for (final path in navFor(user?.role))
                   if (dests[path] != null)
                     ListTile(
-                      leading: Icon(dests[path]!.icon, color: path == current ? C.gold : const Color(0xFFCFD0FF)),
+                      leading: Icon(dests[path]!.icon, color: path == current ? const Color(0xFF9BD3FF) : const Color(0xFFCFE6FA)),
                       title: Text(dests[path]!.label,
                           style: TextStyle(
-                              color: path == current ? Colors.white : const Color(0xFFCFD0FF),
+                              color: path == current ? Colors.white : const Color(0xFFCFE6FA),
                               fontWeight: path == current ? FontWeight.w700 : FontWeight.w500)),
                       selected: path == current,
                       selectedTileColor: Colors.white10,
@@ -265,8 +270,8 @@ class AppScaffold extends StatelessWidget {
             ),
             const Divider(color: Colors.white24, height: 1),
             ListTile(
-              leading: const Icon(Icons.logout, color: Color(0xFFCFD0FF)),
-              title: const Text('Sign out', style: TextStyle(color: Color(0xFFCFD0FF))),
+              leading: const Icon(Icons.logout, color: Color(0xFFCFE6FA)),
+              title: const Text('Sign out', style: TextStyle(color: Color(0xFFCFE6FA))),
               onTap: () async {
                 Navigator.of(context).pop();
                 await context.read<AuthState>().logout();

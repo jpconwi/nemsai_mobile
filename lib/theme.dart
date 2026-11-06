@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 
-/// Colours copied from the website's app.css.
+/// Colours copied from the website's app.css (the new blue palette).
 class C {
-  static const blue = Color(0xFF17119E);
-  static const blueDeep = Color(0xFF0D0A66);
-  static const blueSoft = Color(0xFFECEBFF);
-  static const gold = Color(0xFFF2B705);
-  static const paper = Color(0xFFF4F5FB);
-  static const line = Color(0xFFD8DAF0);
-  static const ink = Color(0xFF15163A);
-  static const muted = Color(0xFF5B5D82);
+  static const blue = Color(0xFF246BB4);
+  static const blueDeep = Color(0xFF104B98);
+  static const blueSoft = Color(0xFFEDF4FC);
+  static const gold = Color(0xFF5F91C7);
+  static const paper = Color(0xFFF4F6F9);
+  static const line = Color(0xFFD6DEE8);
+  static const ink = Color(0xFF182F49);
+  static const muted = Color(0xFF5A6F84);
   static const error = Color(0xFFB3121C);
   static const okBg = Color(0xFFEEF8EF);
   static const okLine = Color(0xFFB8DCB9);
-  static const skBase = Color(0xFFE6E8F5);
-  static const skHigh = Color(0xFFF7F8FD);
+  static const skBase = Color(0xFFE3EAF2);
+  static const skHigh = Color(0xFFF5F8FB);
 }
 
 const serif = 'serif';
@@ -26,7 +26,7 @@ ThemeData buildTheme() {
     colorScheme: scheme,
     scaffoldBackgroundColor: C.paper,
     appBarTheme: const AppBarTheme(
-      backgroundColor: C.blue,
+      backgroundColor: C.blueDeep,
       foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: false,

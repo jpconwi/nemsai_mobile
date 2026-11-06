@@ -19,7 +19,6 @@ import '../widgets/markdown_text.dart';
 import '../widgets/photo_report_card.dart';
 import '../widgets/record_form.dart';
 import '../widgets/skeleton.dart';
-import '../widgets/voice_input_button.dart';
 
 const _formTypes = {
   'concern_form': 'concern',
@@ -305,7 +304,7 @@ class _ChatScreenState extends State<ChatScreen> {
     ];
 
     return AppScaffold(
-      title: 'Campus AI',
+      title: 'NEMSAI Assistant',
       current: '/ai',
       actions: [
         IconButton(onPressed: _history, icon: const Icon(Icons.history), tooltip: 'Recent chats'),
@@ -384,14 +383,14 @@ class _ChatScreenState extends State<ChatScreen> {
           constraints: BoxConstraints(maxWidth: maxW),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           decoration: BoxDecoration(
-            color: err ? const Color(0xFFFBE0E2) : (user ? C.blue : Colors.white),
+            color: err ? const Color(0xFFFBE0E2) : (user ? C.blue : const Color(0xFFF0F7FF)),
             borderRadius: BorderRadius.only(
               topLeft: const Radius.circular(16),
               topRight: const Radius.circular(16),
               bottomLeft: Radius.circular(user ? 16 : 4),
               bottomRight: Radius.circular(user ? 4 : 16),
             ),
-            border: user ? null : Border.all(color: err ? C.error : C.line),
+            border: user ? null : Border.all(color: err ? C.error : const Color(0xFFD7EAFF)),
           ),
           child: child,
         );
@@ -541,10 +540,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 minLines: 1,
                 maxLines: 5,
                 textInputAction: TextInputAction.newline,
-                decoration: InputDecoration(
-                  hintText: _photo != null ? 'Describe the problem (optional)' : 'Message NEMSAI',
-                  suffixIcon: VoiceInputButton(controller: _text, enabled: !_busy, onChanged: (_) => setState(() {})),
-                ),
+                decoration: InputDecoration(hintText: _photo != null ? 'Describe the problem (optional)' : 'Message NEMSAI'),
                 onChanged: (_) => setState(() {}),
               ),
             ),
